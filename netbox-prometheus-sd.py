@@ -9,9 +9,11 @@ import netaddr
 
 import pynetbox
 
+exporter_ports = {'linux': '9100', 'microsoft': '9182'}
 
 def main(args):
     targets = []
+    manufacturers = {'linux': [], 'microsoft': []}
     netbox = pynetbox.api(args.url, token=args.token)
 
     # Filter out devices without primary IP address as it is a requirement
@@ -19,10 +21,16 @@ def main(args):
     devices = netbox.dcim.devices.filter(has_primary_ip=True)
     vm = netbox.virtualization.virtual_machines.filter(has_primary_ip=True)
     ips = netbox.ipam.ip_addresses.filter(**{'cf_%s' % args.custom_field: '{'})
+    platforms = netbox.dcim.platforms.all()
+    for platform in platforms:
+        if str(platform.manufacturer).lower() == 'linux':
+            manufacturers['linux'].append(platform.slug)
+        elif str(platform.manufacturer).lower() == 'microsoft':
+            manufacturers['microsoft'].append(platform.slug)
 
-    for device in itertools.chain(devices, vm, ips):
-        if device.custom_fields.get(args.custom_field):
-            labels = {'__port__': str(args.port)}
+    for device in itertools.chain(devices, vm):
+        if device.status.id == 1 and device.platform and device.platform.slug in manufacturers[args.exporter]:
+            labels = {'__port__':  exporter_ports[args.exporter]}
             if getattr(device, 'name', None):
                 labels['__meta_netbox_name'] = device.name
             else:
@@ -52,7 +60,10 @@ def main(args):
             if getattr(device, 'description', None):
                 labels['__meta_netbox_description'] = device.description
             try:
-                device_targets = json.loads(device.custom_fields[args.custom_field])
+                if device.custom_fields[args.custom_field]:
+                    device_targets = json.loads(device.custom_fields[args.custom_field])
+                else:
+                    device_targets = [{'foo': 'bar'}]
             except ValueError:
                 continue  # Ignore errors while decoding the target json FIXME: logging
 
@@ -62,10 +73,10 @@ def main(args):
             for target in device_targets:
                 target_labels = labels.copy()
                 target_labels.update(target)
-                if hasattr(device, 'primary_ip'):
+                if hasattr(device, 'primary_ip') and not device.primary_ip is None:
                     address = device.primary_ip
-                else:
-                    address = device
+                #else:
+                #    address = device
                 targets.append({'targets': ['%s:%s' % (str(netaddr.IPNetwork(address.address).ip),
                                                        target_labels['__port__'])],
                                 'labels': target_labels})
@@ -96,6 +107,8 @@ if __name__ == '__main__':
     parser.add_argument('url', help='URL to Netbox')
     parser.add_argument('token', help='Authentication Token')
     parser.add_argument('output', help='Output file')
+    parser.add_argument('exporter', help='Host OS: linux OR microsoft')
 
     args = parser.parse_args()
+
     main(args)

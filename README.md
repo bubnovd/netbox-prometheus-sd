@@ -25,6 +25,12 @@ Netbox admin page (Home -> Extras -> Custom fields) with the following settings:
 
 # Usage
 
+`docker build -t netbox-prom  .`
+
+`docker run -d --name=netbox-prom  -e NETBOX_URL=http://10.200.254.29:32769 -e NETBOX_TOKEN=token -e OUTPUT_FILE=linux.yml -e EXPORTER=linux -e INTERVAL=1 -e EXPORTER=linux netbox-prom`
+
+EXPORTER - OS type: linux or microsoft
+
 ```
 usage: netbox-prometheus-sd.py [-h] [-p PORT] [-f CUSTOM_FIELD]
                                url token output
