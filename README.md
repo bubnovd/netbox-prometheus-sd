@@ -15,30 +15,34 @@ Current Maintainer: Antoine Millet <antoine.millet __at__ enix.io>
 
 This project requires Python 3 and [Pynetbox](https://github.com/digitalocean/pynetbox/).
 
-Also, this project requires a custom field to be created into your Netbox instance.
-By default, this custom field is named `prom_labels` and can be created in the
-Netbox admin page (Home -> Extras -> Custom fields) with the following settings:
+ВМ в нетбоксе должны иметь обязательное поле Platform, описывающее ОС:
+![VM](img/vm.png)
 
-- Objects: select `dcim > device` and `virtualization > virtual machine`
-- Type: `Text`
-- Name: `prom_labels`
+А этот Platform должен содержаться в Manufacturer: Linux или Microsoft. В завсимости от мануфактурера будет меняться порт экспортера (9100 для node_exporter (Linux) и 9182 для wmi_exporter (Windows)):
 
-# Usage
+![Platform](img/platforms.png)
+
+# Usage with Docker
 
 `docker build -t netbox-prom  .`
 
-`docker run -d --name=netbox-prom  -e NETBOX_URL=http://10.200.254.29:32769 -e NETBOX_TOKEN=token -e OUTPUT_FILE=linux.yml -e EXPORTER=linux -e INTERVAL=1 -e EXPORTER=linux netbox-prom`
+`docker run -d --name=netbox-prom  -e NETBOX_URL=http://netbox.address:port -e NETBOX_TOKEN=token -e OUTPUT_FILE=linux.yml -e EXPORTER=linux -e INTERVAL=1 netbox-prom`
+
+`docker run -d --name=netbox-prom  -e NETBOX_URL=http://netbox.address:port -e NETBOX_TOKEN=token -e OUTPUT_FILE=microsoft.yml -e EXPORTER=microsoft -e INTERVAL=1 netbox-prom`
 
 EXPORTER - OS type: linux or microsoft
 
+# Usage
+
 ```
 usage: netbox-prometheus-sd.py [-h] [-p PORT] [-f CUSTOM_FIELD]
-                               url token output
+                               url token output 
 
 positional arguments:
   url                   URL to Netbox
   token                 Authentication Token
   output                Output file
+  exporter              linux | microsoft
 
 optional arguments:
   -h, --help            show this help message and exit
